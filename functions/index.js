@@ -9,9 +9,9 @@
 
 import * as admin from "firebase-admin"
 
-const {setGlobalOptions} = require("firebase-functions");
+import {onRequest} from "firebase-functions/v2/https";
+
 const {onRequest} = require("firebase-functions/https");
-const logger = require("firebase-functions/logger");
 
 // For cost control, you can set the maximum number of containers that can be
 // running at the same time. This helps mitigate the impact of unexpected
@@ -58,7 +58,7 @@ export const addGAme = onRequest({cors: true}, async (request, response) => {
     try {
         const name = request.query.name
         const platformId = request.query.platformId
-        const statusId = request.query.statusId
+        const statusId = request.query.statusId 
         const releaseDate = request.query.releaseDate
         const purchaseDate = request.query.purchaseDate
         const startDate = request.query.startDate
