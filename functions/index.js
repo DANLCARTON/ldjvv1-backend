@@ -126,7 +126,7 @@ export const getStatus = onRequest({cors: true}, async (request, response) => {
     }
 })
 
-export const addGame = onRequest({cors: true, invoker: "public"}, async (request, response) => {
+export const addGame = onRequest({ cors: true, invoker: "public" }, async (request, response) => {
     try {
         const name = request.query.name
         const platformId = request.query.platformId
@@ -139,13 +139,13 @@ export const addGame = onRequest({cors: true, invoker: "public"}, async (request
         const cover = `https://img.ldjvv1.ericthiberge.fr/cover/${index}.webp`;
         const seriesId = request.query.seriesId ?? null   
 
-        const collectionFlag = request.query.collectionFlag ?? "false" // à ajouter à la fonction merci, ça c'est du boolean
-        const DLCFlag = request.query.DLCFlag ?? "false" // à ajouter à la fonction merci, ça c'est du boolean
-        const episodicFlag = request.query.episodicFlag ?? "false" // à ajouter à la fonction merci, ça c'est du boolean
+        const collectionFlag = request.query.collectionFlag ?? "false"
+        const DLCFlag = request.query.DLCFlag ?? "false"
+        const episodicFlag = request.query.episodicFlag ?? "false"
 
-        const collectionGames = request.query.collectionGames ?? [] // à ajouter à la fonction merci, ça c'est un array de objects
-        const DLCGames = request.query.collectionGames ?? [] // à ajouter à la fonction merci, ça c'est un array de objects
-        const episodicGames = request.query.episodicGames ?? [] // à ajouter à la fonction merci, ça c'est un array de objects
+        const collectionGames = request.query.collectionGames ? JSON.parse(request.query.collectionGames) : []
+        const DLCGames = request.query.DLCGames ? JSON.parse(request.query.DLCGames) : []
+        const episodicGames = request.query.episodicGames ? JSON.parse(request.query.episodicGames) : []
 
         const ref = realtime.ref(`ldjvv1/gamelist/${index}`);
         const snapshot = await ref.once("value");
@@ -161,7 +161,15 @@ export const addGame = onRequest({cors: true, invoker: "public"}, async (request
                 endDate,
                 index,
                 cover,
-                seriesId
+                seriesId,
+
+                collectionFlag,
+                DLCFlag,
+                episodicFlag,
+
+                collectionGames,
+                DLCGames,
+                episodicGames
             }
 
             await ref.set(newGame)
@@ -174,6 +182,7 @@ export const addGame = onRequest({cors: true, invoker: "public"}, async (request
         response.status(500).send("Erreur lors de l'ajout du jeu -> " + error)
     }
 })
+
 
 
 
@@ -233,19 +242,20 @@ export const addStatus = onRequest({cors: true, invoker: "public"}, async (reque
     }
 })
 
-export const updateGame = onRequest({cors: true, invoker: "public"}, async (request, response) => {
+export const updateGame = onRequest({ cors: true, invoker: "public" }, async (request, response) => {
     try {
         const index = request.query.index;
 
         const ref = realtime.ref(`ldjvv1/gamelist/${index}`);
         const snapshot = await ref.once("value");
-
+        
         if (!snapshot.exists()) {
             return response.status(404).send("Jeu introuvable");
         }
 
         const updates = {};
 
+        // Champs simples
         if (request.query.name !== undefined) updates.name = request.query.name;
         if (request.query.platformId !== undefined) updates.platformId = request.query.platformId;
         if (request.query.statusId !== undefined) updates.statusId = request.query.statusId;
@@ -254,6 +264,22 @@ export const updateGame = onRequest({cors: true, invoker: "public"}, async (requ
         if (request.query.startDate !== undefined) updates.startDate = request.query.startDate;
         if (request.query.endDate !== undefined) updates.endDate = request.query.endDate;
         if (request.query.seriesId !== undefined) updates.seriesId = request.query.seriesId;
+
+        if (request.query.collectionFlag !== undefined) updates.collectionFlag = request.query.collectionFlag;
+        if (request.query.DLCFlag !== undefined) updates.DLCFlag = request.query.DLCFlag;
+        if (request.query.episodicFlag !== undefined) updates.episodicFlag = request.query.episodicFlag;
+
+        if (request.query.collectionGames !== undefined) {
+            updates.collectionGames = JSON.parse(request.query.collectionGames);
+        }
+
+        if (request.query.DLCGames !== undefined) {
+            updates.DLCGames = JSON.parse(request.query.DLCGames);
+        }
+
+        if (request.query.episodicGames !== undefined) {
+            updates.episodicGames = JSON.parse(request.query.episodicGames);
+        }
 
         await ref.update(updates);
 
@@ -392,3 +418,34 @@ export const updateSeries = onRequest({cors: true, invoker: "public"}, async (re
         response.status(500).send("Erreur lors de la mise à jour de la série -> " + error)
     }
 })
+
+export const checkAccess = onRequest({ cors: true, invoker: "public" }, async (req, res) => {
+    try {
+        const cookies = req.body.cookies ?? "";
+
+        const cookieName = "ldjvv1-e3a8c2c406ddd01d29c6a4f41c8b64a3ce47ce948cd79f9b98471bcdbb16f2f7";
+        const expectedValue = "1";
+
+        const found = cookies
+            .split("; ")
+            .find(row => row.startsWith(cookieName + "="));
+
+        if (!found) {
+            return res.status(200).json({ allowed: false });
+        }
+
+        const value = found.split("=")[1];
+
+        if (value === expectedValue) {
+            return res.status(200).json({ allowed: true });
+        }
+
+        return res.status(200).json({ allowed: false });
+
+    } catch (error) {
+        return res.status(500).json({
+            allowed: false,
+            error: "Erreur checkAccess -> " + error
+        });
+    }
+});
